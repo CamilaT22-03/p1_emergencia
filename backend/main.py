@@ -27,7 +27,10 @@ app = FastAPI(title="API de Emergencias Vehiculares")
 # --- 2. LE DAMOS PERMISO A ANGULAR PARA ENTRAR AL RESTAURANTE ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # La dirección de tu Angular
+    allow_origins=[
+        "http://localhost:4200",
+        "https://taller-emergencias.vercel.app"
+    ], # La dirección de tu Angular
     allow_credentials=True,
     allow_methods=["*"], # Permite POST, GET, etc.
     allow_headers=["*"],
@@ -409,13 +412,7 @@ async def obtener_taller_asignado(solicitud_id: int):
 # CU-11: Clasificar Incidente por Imagen (GEMINI IA REAL)
 # ---------------------------------------------------------
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], # Permite todas las conexiones
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# (Middleware de CORS duplicado fue eliminado)
 
 @app.post("/api/emergencias/clasificar-imagen")
 async def clasificar_incidente(imagen: UploadFile = File(...)):
