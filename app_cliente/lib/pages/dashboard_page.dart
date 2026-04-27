@@ -5,6 +5,8 @@ import 'emergencia_page.dart';
 import 'login_page.dart';
 import 'package:app_cliente/pages/taller_asignado_page.dart';
 import 'package:app_cliente/pages/clasificar_incidente_page.dart';
+import 'historial_emergencias_page.dart';
+import 'talleres_page.dart';
 
 class DashboardPage extends StatefulWidget {
   final int clienteId;
@@ -41,7 +43,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       body: [
         _TabSOS(clienteId: widget.clienteId),
-        _TabTalleres(),
+        TalleresPage(clienteId: widget.clienteId),
         _TabPerfil(clienteId: widget.clienteId),
       ][_tab],
       bottomNavigationBar: Container(
@@ -305,7 +307,9 @@ class _TabPerfil extends StatelessWidget {
               color: const Color(0xFF10B981),
               titulo: 'Mis Emergencias',
               subtitulo: 'Historial de reportes',
-              onTap: () {},
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => HistorialEmergenciasPage(clienteId: clienteId),
+              )),
             ),
           ]),
         ),

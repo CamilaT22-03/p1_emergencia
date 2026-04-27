@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 
 // Definimos la estructura exacta que nos manda FastAPI
 export interface Emergencia {
+  id?: number;
   id_emergencia?: number;
   cliente_id: number;
   descripcion: string;

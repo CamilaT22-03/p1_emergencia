@@ -255,7 +255,6 @@ def registrar_tecnico(formulario: schemas.TecnicoNuevo, db: Session = Depends(ge
     db.commit()
     db.refresh(nuevo_tecnico)
     return {"mensaje": "¡Técnico registrado!", "datos": nuevo_tecnico}
-# ==========================================
 # CU-05: VENTANILLA PARA REPORTAR EMERGENCIA
 # ==========================================
 @app.post("/emergencias/")
@@ -338,14 +337,53 @@ def registrar_emergencia(emergencia: schemas.EmergenciaNueva, db: Session = Depe
     db.refresh(nueva_e)
     return {"mensaje": "Emergencia guardada en BD", "id": nueva_e.id}
 
+@app.get("/talleres/")
+def listar_talleres(db: Session = Depends(get_db)):
+    talleres = db.query(models.Taller).order_by(models.Taller.nombre_taller.asc()).all()
+    return [
+        {
+            "id": taller.id,
+            "nombre_taller": taller.nombre_taller,
+            "direccion": taller.direccion,
+            "telefono": taller.telefono,
+            "email": taller.email,
+        }
+        for taller in talleres
+    ]
+
 @app.get("/emergencias-taller/")
 def ver_emergencias_para_taller(db: Session = Depends(get_db)):
     # El taller llamará a esta ruta desde su web para ver la lista
     return db.query(models.Emergencia).filter(models.Emergencia.estado == "Pendiente").all()
+
+@app.get("/emergencias/cliente/{cliente_id}")
+def ver_emergencias_de_cliente(cliente_id: int, db: Session = Depends(get_db)):
+    emergencias = (
+        db.query(models.Emergencia)
+        .filter(models.Emergencia.cliente_id == cliente_id)
+        .order_by(models.Emergencia.id.desc())
+        .all()
+    )
+    return [
+        {
+            "id": emergencia.id,
+            "cliente_id": emergencia.cliente_id,
+            "vehiculo_id": emergencia.vehiculo_id,
+            "direccion": emergencia.direccion,
+            "descripcion": emergencia.descripcion,
+            "estado": emergencia.estado,
+            "latitud": emergencia.latitud,
+            "longitud": emergencia.longitud,
+            "tipo_ia": emergencia.tipo_ia,
+            "severidad_ia": emergencia.severidad_ia,
+            "taller_id": emergencia.taller_id,
+        }
+        for emergencia in emergencias
+    ]
 # Ruta para que el taller Acepte la emergencia
 @app.patch("/emergencias/{id_emergencia}/aceptar")
 def aceptar_emergencia(id_emergencia: int, db: Session = Depends(get_db)):
-    emergencia = db.query(models.Emergencia).filter(models.Emergencia.id_emergencia == id_emergencia).first()
+    emergencia = db.query(models.Emergencia).filter(models.Emergencia.id == id_emergencia).first()
     if emergencia:
         emergencia.estado = "Aceptada"
         db.commit()

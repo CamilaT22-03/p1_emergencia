@@ -72,11 +72,12 @@ export class EmergenciaVista implements OnInit, OnDestroy {
 
   // Función para aceptar el servicio (CU-08)
   aceptarEmergencia(): void {
-    if (!this.emergenciaSeleccionada?.id_emergencia) return;
+    const idEmergencia = this.emergenciaSeleccionada?.id ?? this.emergenciaSeleccionada?.id_emergencia;
+    if (!idEmergencia) return;
 
     this.procesando = true; // Mostramos que está cargando
 
-    this.service.aceptarEmergencia(this.emergenciaSeleccionada.id_emergencia).subscribe({
+    this.service.aceptarEmergencia(idEmergencia).subscribe({
       next: () => {
         alert("¡Servicio Aceptado! Se ha notificado al cliente que vas en camino.");
         this.cerrarFicha(); // Volvemos a la tabla

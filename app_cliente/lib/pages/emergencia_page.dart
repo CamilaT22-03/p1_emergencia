@@ -5,8 +5,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../api_config.dart';
 import 'ficha_resumen_page.dart';
+import '../services/web_audio_recorder.dart';
 
 // (IMPORTANTE: Asegúrate de importar tu tema si AppTheme está en otro archivo)
 // import '../theme/app_theme.dart'; // Descomenta o ajusta esta línea según tu proyecto
@@ -30,6 +32,8 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
   XFile? _imagenSeleccionada;
   Uint8List? _audioBytes;
   String? _audioNombre;
+  bool _grabandoAudio = false;
+  final WebAudioRecorder _webAudioRecorder = WebAudioRecorder();
 
   Future<void> _tomarFoto() async {
     final XFile? foto = await _picker.pickImage(source: ImageSource.gallery);
@@ -41,6 +45,36 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
   }
 
   Future<void> _seleccionarAudio() async {
+    if (kIsWeb) {
+      if (_grabandoAudio) {
+        final grabacion = await _webAudioRecorder.stop();
+        if (grabacion != null) {
+          setState(() {
+            _audioBytes = grabacion.bytes;
+            _audioNombre = grabacion.nombreArchivo;
+            _grabandoAudio = false;
+          });
+        } else {
+          setState(() => _grabandoAudio = false);
+        }
+        return;
+      }
+
+      final tienePermiso = await _webAudioRecorder.hasPermission();
+      if (!tienePermiso) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No se pudo acceder al micrófono'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
+      }
+
+      await _webAudioRecorder.start();
+      setState(() => _grabandoAudio = true);
+      return;
+    }
+
     final resultado = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['wav', 'mp3', 'm4a', 'aac', 'ogg', 'flac'],
@@ -237,10 +271,12 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _seleccionarAudio,
-                    icon: const Icon(Icons.mic_none_outlined),
-                    label: Text(_audioBytes == null
-                        ? 'Adjuntar audio'
-                        : 'Audio cargado: ${_audioNombre ?? 'nota_de_voz'}'),
+                    icon: Icon(_grabandoAudio ? Icons.stop_circle_outlined : Icons.mic_none_outlined),
+                    label: Text(_grabandoAudio
+                        ? 'Detener grabación'
+                        : _audioBytes == null
+                            ? (kIsWeb ? 'Grabar audio con micrófono' : 'Adjuntar audio')
+                            : 'Audio cargado: ${_audioNombre ?? 'nota_de_voz'}'),
                   ),
                 ),
             const SizedBox(height: 32),

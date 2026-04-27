@@ -82,11 +82,11 @@ class FichaResumenPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildEtiquetaIA("Clasificación", datosFicha['tipo_ia'], Colors.blue),
+                          _buildEtiquetaIA("Clasificación", _valor(datosFicha['tipo_ia'] ?? datosFicha['tipo_incidente']), Colors.blue),
                           const Divider(),
-                          _buildEtiquetaIA("Severidad", datosFicha['severidad_ia'], Colors.red),
+                          _buildEtiquetaIA("Severidad", _valor(datosFicha['severidad_ia'] ?? datosFicha['nivel_severidad']), Colors.red),
                           const Divider(),
-                          _buildEtiquetaIA("Prioridad", datosFicha['prioridad'] ?? 'Media', Colors.orange),
+                          _buildEtiquetaIA("Prioridad", _valor(datosFicha['prioridad'] ?? 'Media'), Colors.orange),
                           const Divider(),
                           if ((datosFicha['resumen'] ?? '').toString().isNotEmpty) ...[
                             const Text("Resumen automático:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -126,11 +126,11 @@ class FichaResumenPage extends StatelessWidget {
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          _buildFilaDato(Icons.person_pin_circle, "Referencia:", datosFicha['direccion']),
+                          _buildFilaDato(Icons.person_pin_circle, "Referencia:", _valor(datosFicha['direccion'])),
                           const Divider(),
-                          _buildFilaDato(Icons.description, "Descripción:", datosFicha['descripcion']),
+                          _buildFilaDato(Icons.description, "Descripción:", _valor(datosFicha['descripcion'])),
                           const Divider(),
-                          _buildFilaDato(Icons.map, "Coordenadas:", "${datosFicha['latitud'].toStringAsFixed(5)}, ${datosFicha['longitud'].toStringAsFixed(5)}"),
+                          _buildFilaDato(Icons.map, "Coordenadas:", _coordenadas()),
                         ],
                       ),
                     ),
@@ -154,6 +154,25 @@ class FichaResumenPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _valor(dynamic valor) {
+    if (valor == null) {
+      return 'No disponible';
+    }
+    final texto = valor.toString().trim();
+    return texto.isEmpty ? 'No disponible' : texto;
+  }
+
+  String _coordenadas() {
+    final latitud = datosFicha['latitud'];
+    final longitud = datosFicha['longitud'];
+
+    if (latitud is num && longitud is num) {
+      return '${latitud.toStringAsFixed(5)}, ${longitud.toStringAsFixed(5)}';
+    }
+
+    return 'No disponible';
   }
 
   // Widgets pequeñitos para que el código quede limpio

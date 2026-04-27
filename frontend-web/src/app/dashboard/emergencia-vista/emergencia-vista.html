@@ -59,7 +59,7 @@
         <div class="cards-grid">
           <div *ngFor="let em of lista" class="emergency-card">
             <div class="card-header">
-              <span class="card-id">#{{ em.id_emergencia }}</span>
+              <span class="card-id">#{{ em.id || em.id_emergencia }}</span>
               <span class="status-badge">PENDIENTE</span>
             </div>
             <div class="card-body">

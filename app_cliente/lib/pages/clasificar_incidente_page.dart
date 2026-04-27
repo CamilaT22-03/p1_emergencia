@@ -53,8 +53,21 @@ class _ClasificarIncidentePageState extends State<ClasificarIncidentePage> {
       if (datos.containsKey('error')) {
         _mostrarError("Error IA: ${datos['error']}");
       } else {
+        final analisis = Map<String, dynamic>.from(datos['analisis_ia'] ?? {});
         setState(() {
-          _resultadoIA = datos['analisis_ia'];
+          _resultadoIA = {
+            'tipo_ia': analisis['tipo_ia'] ?? analisis['tipo_incidente'] ?? 'otros',
+            'severidad_ia': analisis['severidad_ia'] ?? analisis['nivel_severidad'] ?? 'Moderado',
+            'prioridad': analisis['prioridad'] ?? _prioridadDesdeSeveridad(
+              (analisis['severidad_ia'] ?? analisis['nivel_severidad'] ?? 'Moderado').toString(),
+            ),
+            'resumen': analisis['resumen'] ?? 'Clasificación automática del incidente',
+            'transcripcion_audio': analisis['transcripcion_audio'] ?? '',
+            'confianza_ia': analisis['confianza_ia'] ?? '',
+            'sugiere_grua': analisis['sugiere_grua'] ?? false,
+            'tipo_incidente': analisis['tipo_incidente'] ?? analisis['tipo_ia'] ?? 'otros',
+            'nivel_severidad': analisis['nivel_severidad'] ?? analisis['severidad_ia'] ?? 'Moderado',
+          };
         });
       }
     } else {
@@ -73,6 +86,19 @@ void _mostrarError(String mensaje) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(mensaje), backgroundColor: Colors.red)
   );
+}
+
+String _prioridadDesdeSeveridad(String severidad) {
+  switch (severidad.toLowerCase()) {
+    case 'crítico':
+    case 'critico':
+    case 'grave':
+      return 'Alta';
+    case 'moderado':
+      return 'Media';
+    default:
+      return 'Baja';
+  }
 }
   @override
   Widget build(BuildContext context) {
