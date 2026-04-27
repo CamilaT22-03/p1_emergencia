@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http'; // <--- Importamos al cartero aquí también
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-registro-taller',
@@ -24,7 +25,7 @@ export class RegistroTallerComponent {
 
   guardarTaller() {
     // Aquí ocurre la magia: El cartero viaja a la ventanilla de FastAPI (puerto 8000)
-    this.http.post('http://localhost:8000/talleres/', this.taller).subscribe({
+    this.http.post(`${environment.apiUrl}/talleres/`, this.taller).subscribe({
       
       // Si el Backend responde que todo salió bien:
       next: (respuesta: any) => {

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 // Definimos la estructura exacta que nos manda FastAPI
 export interface Emergencia {
@@ -20,7 +21,7 @@ export interface Emergencia {
 })
 export class EmergenciaService {
   // Tu IP de FastAPI
-  private apiUrl = 'http://localhost:8000';
+  private apiUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) { }
 
