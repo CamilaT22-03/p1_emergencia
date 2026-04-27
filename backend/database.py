@@ -1,17 +1,23 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
 
-# 1. Aquí ponemos la dirección de nuestra bodega (PostgreSQL)
-# Cambia "tu_usuario" y "tu_contraseña" por los de tu PostgreSQL.
-URL_BASE_DATOS = "postgresql://postgres:12345@localhost/emergencia_db"
+# Cargar variables de entorno desde el archivo .env
+load_dotenv()
+
+# 1. Obtenemos la URL de la base de datos desde las variables de entorno (.env)
+# Si no existe, usamos la local por defecto
+URL_BASE_DATOS = os.getenv("DATABASE_URL", "postgresql://postgres:12345@localhost/emergencia_db")
 
 # 2. Creamos el motor que hará viajar los datos
+# Añadimos sslmode=require porque Supabase lo necesita en producción
 engine = create_engine(URL_BASE_DATOS)
 
 # 3. Creamos la sesión (es como abrir la puerta para meter o sacar datos)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 4. Esta es la base mágica con la que crearemos nuestras tablas (Cliente, Taller, etc.)
+# 4. Esta es la base mágica con la que crearemos nuestras tablas
 Base = declarative_base()
 
 # 5. Función para que el mesero pida la llave de la bodega y la devuelva al terminar
@@ -20,4 +26,4 @@ def get_db():
     try:
         yield db
     finally:
-        db.close()
+        db.close()

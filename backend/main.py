@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True) 
 
 # Imprime solo para confirmar (luego borras esta línea)
-llave_actual = os.getenv("GEMINI_API_KEY")
+llave_actual = os.getenv("GEMINI_API_KEY", "")
 print(f"La llave que Python está usando empieza con: {llave_actual[:10]}...")
 # El Gerente abre el restaurante
 app = FastAPI(title="API de Emergencias Vehiculares")
