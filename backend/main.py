@@ -9,7 +9,6 @@ import mimetypes
 import random
 import models
 import schemas
-import google.generativeai as genai
 from google import genai as genai_sdk
 from google.genai import types as genai_types
 import os
@@ -103,9 +102,14 @@ def _clasificar_por_texto(texto: str) -> dict:
 
 
 def _analizar_imagen_con_gemini(image_bytes: bytes) -> dict:
-    img = Image.open(io.BytesIO(image_bytes))
+    if not os.getenv("GEMINI_API_KEY"):
+        raise RuntimeError("No se configuró GEMINI_API_KEY")
 
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    client = genai_sdk.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    image_part = genai_types.Part.from_bytes(
+        data=image_bytes,
+        mime_type="image/jpeg",
+    )
 
     prompt = """
     Eres un perito experto en incidentes vehiculares de una compañía de seguros.
@@ -125,7 +129,11 @@ def _analizar_imagen_con_gemini(image_bytes: bytes) -> dict:
     4. Si no hay suficiente evidencia, responde como "otros" con severidad "Moderado" y confianza menor al 70%.
     """
 
-    response = model.generate_content([prompt, img])
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[prompt, image_part],
+        config=genai_types.GenerateContentConfig(response_mime_type="application/json"),
+    )
     raw_text = (response.text or "").strip()
     cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
     analisis = _parsear_json_seguro(cleaned_text, _clasificar_por_texto(cleaned_text))
@@ -371,45 +379,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY")) # ¡Bueno!
-
 @app.post("/api/emergencias/clasificar-imagen")
 async def clasificar_incidente(imagen: UploadFile = File(...)):
     try:
         print(f"--- Recibiendo imagen: {imagen.filename} ---")
         image_bytes = await imagen.read()
-        img = Image.open(io.BytesIO(image_bytes))
-        
-        # EL NOMBRE CORRECTO EN LA LIBRERÍA ACTUALIZADA
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        
-        prompt = """
-        Eres un perito experto en incidentes vehiculares de una compañía de seguros.
-        Analiza la imagen del incidente y responde ESTRICTAMENTE con un objeto JSON válido (sin ```json ni texto extra).
-        Usa exactamente esta estructura:
-        {
-            "tipo_incidente": "batería" | "llanta" | "choque" | "motor" | "otros",
-            "nivel_severidad": "Leve" | "Moderado" | "Grave" | "Crítico",
-            "sugiere_grua": true o false,
-            "confianza_ia": "porcentaje, ej: 95%"
-        }
-        
-        REGLAS OBLIGATORIAS PARA TU ANÁLISIS:
-        1. Si el incidente es "llanta" (pinchada, reventada) o "batería", el nivel_severidad DEBE ser "Leve" o "Moderado" y sugiere_grua DEBE SER SIEMPRE false (esto se repara en el lugar, no requiere grúa).
-        2. Si es un "choque", evalúa el daño de la carrocería. Solo si el daño impide que el auto ruede con seguridad (ej. llantas torcidas, frente destruido), sugiere_grua será true. Si es un raspón o choque leve, será false.
-        3. Si es un problema de "motor" visible (humo, fuego), sugiere_grua DEBE ser true.
-        """
-        
-        print("Enviando a Google Gemini...")
-        response = model.generate_content([prompt, img])
-        raw_text = response.text.strip()
-        print(f"Respuesta de Gemini: {raw_text}") 
-        
-        cleaned_text = raw_text.replace("```json", "").replace("```", "").strip()
-        datos_ia = json.loads(cleaned_text)
-        
+        datos_ia = _analizar_imagen_con_gemini(image_bytes)
         return {"analisis_ia": datos_ia}
-
     except Exception as e:
         print(f"ERROR CRÍTICO: {str(e)}")
         return {"error": str(e)}
