@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../api_config.dart';
 
 class TallerAsignadoPage extends StatefulWidget {
   final int solicitudId;
@@ -29,8 +30,7 @@ class _TallerAsignadoPageState extends State<TallerAsignadoPage> {
 
   Future<void> obtenerDatosDelTaller() async {
     try {
-      // Llamada REAL a tu backend (cambia 'localhost' si pruebas en celular físico)
-      final url = Uri.parse('http://127.0.0.1:8000/api/emergencias/${widget.solicitudId}/taller-asignado');
+      final url = Uri.parse('${ApiConfig.baseUrl}/api/emergencias/${widget.solicitudId}/taller-asignado');
       final respuesta = await http.get(url);
 
       if (respuesta.statusCode == 200) {

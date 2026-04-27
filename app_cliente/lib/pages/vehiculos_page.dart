@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../api_config.dart';
 import '../theme.dart';
 // ¡ESTA ES LA LÍNEA QUE FALTABA PARA QUE RECONOZCA LA PÁGINA! 👇
 import 'registro_vehiculo_page.dart'; 
@@ -27,7 +28,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
     setState(() => _cargando = true);
     try {
       final res = await http.get(
-        Uri.parse('http://localhost:8000/vehiculos/cliente/${widget.clienteId}'),
+        Uri.parse('${ApiConfig.baseUrl}/vehiculos/cliente/${widget.clienteId}'),
       );
 
       if (res.statusCode == 200) {

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
+import '../api_config.dart';
 import 'ficha_resumen_page.dart';
 
 // (IMPORTANTE: Asegúrate de importar tu tema si AppTheme está en otro archivo)
@@ -25,7 +28,8 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
 
   final ImagePicker _picker = ImagePicker();
   XFile? _imagenSeleccionada;
-  Map<String, dynamic>? _resultadoIA;
+  Uint8List? _audioBytes;
+  String? _audioNombre;
 
   Future<void> _tomarFoto() async {
     final XFile? foto = await _picker.pickImage(source: ImageSource.gallery);
@@ -36,19 +40,28 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
     }
   }
 
-  Future<void> procesarYEnviar() async {
-    if (descripcionCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Por favor, describe brevemente tu problema'),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
-      ));
-      return;
-    }
+  Future<void> _seleccionarAudio() async {
+    final resultado = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['wav', 'mp3', 'm4a', 'aac', 'ogg', 'flac'],
+      withData: true,
+    );
 
-    if (_imagenSeleccionada == null) {
+    if (resultado != null && resultado.files.isNotEmpty) {
+      final audio = resultado.files.first;
+      if (audio.bytes != null) {
+        setState(() {
+          _audioBytes = audio.bytes;
+          _audioNombre = audio.name;
+        });
+      }
+    }
+  }
+
+  Future<void> procesarYEnviar() async {
+    if (descripcionCtrl.text.isEmpty && _imagenSeleccionada == null && _audioBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Por favor, sube una foto de la evidencia para la IA'),
+        content: Text('Agrega texto, una foto o un audio del incidente'),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
       ));
@@ -64,35 +77,57 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
       }
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
 
-      _resultadoIA = {
-        'tipo': 'Daño vehicular detectado',
-        'severidad': 'Alta'
-      };
-
-      final fichaDeEmergencia = {
-        'cliente_id': widget.clienteId,
-        'vehiculo_id': 1, 
-        'direccion': ubicacionCtrl.text.isEmpty ? "Ubicación por GPS" : ubicacionCtrl.text,
-        'descripcion': descripcionCtrl.text,
-        'latitud': position.latitude,
-        'longitud': position.longitude,
-        'tipo_ia': _resultadoIA!['tipo'],
-        'severidad_ia': _resultadoIA!['severidad'],
-      };
-
-      final res = await http.post(
-        Uri.parse('http://localhost:8000/emergencias/'), 
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(fichaDeEmergencia),
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}/api/emergencias/registrar-inteligente'),
       );
 
+      request.fields['cliente_id'] = widget.clienteId.toString();
+      request.fields['vehiculo_id'] = '1';
+      request.fields['direccion'] = ubicacionCtrl.text.isEmpty ? 'Ubicación por GPS' : ubicacionCtrl.text;
+      request.fields['descripcion'] = descripcionCtrl.text;
+      request.fields['latitud'] = position.latitude.toString();
+      request.fields['longitud'] = position.longitude.toString();
+
+      if (_imagenSeleccionada != null) {
+        final bytes = await _imagenSeleccionada!.readAsBytes();
+        request.files.add(http.MultipartFile.fromBytes(
+          'imagen',
+          bytes,
+          filename: _imagenSeleccionada!.name,
+        ));
+      }
+
+      if (_audioBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'audio',
+          _audioBytes!,
+          filename: _audioNombre ?? 'nota_de_voz.wav',
+        ));
+      }
+
+      final streamed = await request.send();
+      final res = await http.Response.fromStream(streamed);
+
       if (res.statusCode == 200 || res.statusCode == 201) {
+        final datos = jsonDecode(res.body);
+        final analisis = (datos['analisis_ia'] as Map<String, dynamic>? ) ?? {};
+        final fichaDeEmergencia = {
+          'cliente_id': widget.clienteId,
+          'vehiculo_id': 1,
+          'direccion': ubicacionCtrl.text.isEmpty ? 'Ubicación por GPS' : ubicacionCtrl.text,
+          'descripcion': descripcionCtrl.text,
+          'latitud': position.latitude,
+          'longitud': position.longitude,
+          ...analisis,
+        };
+
         Navigator.pushReplacement(
             context, 
             MaterialPageRoute(
                 builder: (context) => FichaResumenPage(
                   datosFicha: fichaDeEmergencia,
-                  imagen: _imagenSeleccionada!, // LE PASAMOS LA FOTO AQUÍ
+                  imagen: _imagenSeleccionada,
                 )
             )
         );
@@ -197,6 +232,17 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
                     ),
               ),
             ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _seleccionarAudio,
+                    icon: const Icon(Icons.mic_none_outlined),
+                    label: Text(_audioBytes == null
+                        ? 'Adjuntar audio'
+                        : 'Audio cargado: ${_audioNombre ?? 'nota_de_voz'}'),
+                  ),
+                ),
             const SizedBox(height: 32),
 
             SizedBox(

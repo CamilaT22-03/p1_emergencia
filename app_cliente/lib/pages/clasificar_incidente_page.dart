@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
+import '../api_config.dart';
 import 'ficha_resumen_page.dart';
 
 class ClasificarIncidentePage extends StatefulWidget {
@@ -36,7 +37,7 @@ class _ClasificarIncidentePageState extends State<ClasificarIncidentePage> {
   setState(() { _estaAnalizando = true; });
 
   try {
-    var uri = Uri.parse('http://127.0.0.1:8000/api/emergencias/clasificar-imagen');
+    var uri = Uri.parse('${ApiConfig.baseUrl}/api/emergencias/clasificar-imagen');
     var request = http.MultipartRequest('POST', uri);
     request.files.add(http.MultipartFile.fromBytes('imagen', _imagenBytes!, filename: _imagenSeleccionada!.name));
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../api_config.dart';
 import '../theme.dart';
 
 class RegistroPage extends StatefulWidget {
@@ -27,8 +28,7 @@ class _RegistroPageState extends State<RegistroPage> {
     
     try {
       final res = await http.post(
-        // 2. CORRECCIÓN DE URL: localhost en vez de 10.0.2.2
-        Uri.parse('http://localhost:8000/clientes/'),
+        Uri.parse('${ApiConfig.baseUrl}/clientes/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'nombre_completo': nombreCtrl.text,

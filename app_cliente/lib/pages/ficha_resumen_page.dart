@@ -5,12 +5,12 @@ import 'package:image_picker/image_picker.dart';
 
 class FichaResumenPage extends StatelessWidget {
   final Map<String, dynamic> datosFicha;
-  final XFile imagen; // NUEVO: Recibimos la foto
+  final XFile? imagen;
 
   const FichaResumenPage({
     super.key, 
     required this.datosFicha,
-    required this.imagen, // NUEVO
+    this.imagen,
   });
 
   @override
@@ -29,9 +29,16 @@ class FichaResumenPage extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               height: 250,
-              child: kIsWeb
-                  ? Image.network(imagen.path, fit: BoxFit.cover) // Si compila en Edge/Chrome
-                  : Image.file(File(imagen.path), fit: BoxFit.cover), // Si compila en Android/iOS
+              child: imagen == null
+                  ? Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(Icons.image_not_supported_outlined, size: 56, color: Colors.grey),
+                      ),
+                    )
+                  : kIsWeb
+                      ? Image.network(imagen!.path, fit: BoxFit.cover)
+                      : Image.file(File(imagen!.path), fit: BoxFit.cover),
             ),
             
             Padding(
@@ -79,6 +86,20 @@ class FichaResumenPage extends StatelessWidget {
                           const Divider(),
                           _buildEtiquetaIA("Severidad", datosFicha['severidad_ia'], Colors.red),
                           const Divider(),
+                          _buildEtiquetaIA("Prioridad", datosFicha['prioridad'] ?? 'Media', Colors.orange),
+                          const Divider(),
+                          if ((datosFicha['resumen'] ?? '').toString().isNotEmpty) ...[
+                            const Text("Resumen automático:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 5),
+                            Text(datosFicha['resumen'].toString(), style: const TextStyle(fontSize: 15, height: 1.4)),
+                            const Divider(),
+                          ],
+                          if ((datosFicha['transcripcion_audio'] ?? '').toString().isNotEmpty) ...[
+                            const Text("Transcripción de audio:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 5),
+                            Text(datosFicha['transcripcion_audio'].toString(), style: const TextStyle(fontSize: 15, height: 1.4)),
+                            const Divider(),
+                          ],
                           // Agregamos un texto simulado de detalle para que se vea súper pro
                           const Text("Detalles detectados:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                           const SizedBox(height: 5),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../api_config.dart';
 import '../theme.dart';
 import 'registro_page.dart';
 import 'dashboard_page.dart';
@@ -25,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _cargando = true);
     try {
       final res = await http.post(
-        Uri.parse('http://localhost:8000/login-cliente/'), // <--- COMA CORREGIDA ✅
+        Uri.parse('${ApiConfig.baseUrl}/login-cliente/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': emailCtrl.text, 'contrasena': passCtrl.text}),
       );

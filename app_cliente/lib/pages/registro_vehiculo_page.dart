@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../api_config.dart';
 import '../theme.dart';
 
 class RegistroVehiculoPage extends StatefulWidget {
@@ -31,7 +32,7 @@ class _RegistroVehiculoPageState extends State<RegistroVehiculoPage> {
     
     try {
       final res = await http.post(
-        Uri.parse('http://localhost:8000/vehiculos/'),
+        Uri.parse('${ApiConfig.baseUrl}/vehiculos/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'placa': placaCtrl.text, 
