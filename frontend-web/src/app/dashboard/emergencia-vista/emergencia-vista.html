@@ -7,31 +7,25 @@
         <small>Sistema de Gestión</small>
       </div>
     </div>
-
     <nav class="sidebar-nav">
       <button class="nav-item" [class.active]="seccion === 'inicio'" (click)="seccion = 'inicio'; cerrarFicha()">
         <span class="nav-icon">🏠</span> <span>Inicio</span>
       </button>
-
       <button class="nav-item danger" [class.active]="seccion === 'emergencias'" (click)="seccion = 'emergencias'">
         <span class="nav-icon">🚨</span> <span>Emergencias</span>
         <span class="badge" *ngIf="lista.length > 0">{{ lista.length }}</span>
       </button>
-
       <button class="nav-item" [class.active]="seccion === 'cuenta'" (click)="seccion = 'cuenta'; cerrarFicha()">
         <span class="nav-icon">👤</span> <span>Mi Cuenta</span>
       </button>
     </nav>
-
     <div class="sidebar-footer">
       <button class="btn-logout" (click)="salir()">
         <span>⏻</span> Cerrar sesión
       </button>
     </div>
   </aside>
-
   <main class="main-content">
-
     <div *ngIf="seccion === 'inicio'" class="section-fade">
       <header class="page-header">
         <h1>Panel de Inicio</h1>
@@ -47,25 +41,36 @@
         </div>
       </div>
     </div>
-
     <div *ngIf="seccion === 'emergencias'" class="section-fade">
-
+      <!-- TABLA DE EMERGENCIAS -->
       <div *ngIf="!emergenciaSeleccionada">
         <header class="page-header">
           <h1>Auxilios Vehiculares</h1>
           <span class="live-badge">EN VIVO</span>
         </header>
-
         <div class="cards-grid">
           <div *ngFor="let em of lista" class="emergency-card">
             <div class="card-header">
               <span class="card-id">#{{ em.id || em.id_emergencia }}</span>
-              <span class="status-badge">PENDIENTE</span>
+              <span class="status-badge" [ngStyle]="{
+                'background-color': getEstadoConfig(em.estado).bgColor,
+                'color': getEstadoConfig(em.estado).color
+              }">
+                {{ getEstadoConfig(em.estado).icon }} {{ getEstadoConfig(em.estado).label }}
+              </span>
             </div>
             <div class="card-body">
               <div class="card-field">
                 <label>Diagnóstico IA</label>
                 <p><strong>{{ em.tipo_ia || 'Analizando...' }}</strong></p>
+              </div>
+              <div class="card-field" *ngIf="em.severidad_ia">
+                <label>Severidad</label>
+                <p><strong>{{ em.severidad_ia }}</strong></p>
+              </div>
+              <div class="card-field" *ngIf="em.prioridad_ia">
+                <label>Prioridad</label>
+                <p><strong>{{ em.prioridad_ia }}</strong></p>
               </div>
             </div>
             <div class="card-footer">
@@ -73,92 +78,120 @@
             </div>
           </div>
         </div>
+        <div *ngIf="lista.length === 0" class="empty-state">
+          <span>✨</span>
+          <h3>Sin emergencias pendientes</h3>
+          <p>Las nuevas emergencias aparecerán aquí automáticamente.</p>
+        </div>
       </div>
-
-      <div *ngIf="emergenciaSeleccionada"
-        style="max-width: 450px; margin: 0 auto; padding-bottom: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-
-        <button (click)="cerrarFicha()"
-          style="background: none; border: none; color: #4f46e5; cursor: pointer; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-          <span>←</span> Volver a la lista
+      <!-- FICHA DETALLADA -->
+      <div *ngIf="emergenciaSeleccionada" class="ficha-detalle">
+        <button class="btn-volver" (click)="cerrarFicha()">
+          ← Volver a la lista
         </button>
-
-        <div
-          style="background: #f3f4f6; border-radius: 30px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid #ddd;">
-
-          <div
-            style="background: #ef4444; color: white; padding: 25px 20px; display: flex; align-items: center; gap: 15px;">
-            <span style="font-size: 22px;">←</span>
-            <h2 style="margin: 0; font-size: 19px; font-weight: 600;">Análisis del Incidente</h2>
+        <div class="ficha-container">
+          <!-- Cabecera de emergencia -->
+          <div class="ficha-header">
+            <h2>Análisis del Incidente #{{ emergenciaSeleccionada.id || emergenciaSeleccionada.id_emergencia }}</h2>
+            <span class="status-badge ficha-badge" [ngStyle]="{
+              'background-color': getEstadoConfig(emergenciaSeleccionada.estado).bgColor,
+              'color': getEstadoConfig(emergenciaSeleccionada.estado).color
+            }">
+              {{ getEstadoConfig(emergenciaSeleccionada.estado).icon }}
+              {{ getEstadoConfig(emergenciaSeleccionada.estado).label }}
+            </span>
           </div>
-
-          <div style="padding: 20px;">
-            <div
-              style="background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="margin: 0; font-size: 13px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">
-                  Severidad</h3>
-                <span
-                  style="background: #ef4444; color: white; padding: 5px 12px; border-radius: 8px; font-weight: 800; font-size: 12px;">
-                  {{ emergenciaSeleccionada.severidad_ia || 'ALTA' }}
+          <div class="ficha-body">
+            <!-- Diagnóstico IA -->
+            <div class="info-card">
+              <h3>🤖 Diagnóstico de IA</h3>
+              <div class="chips-row">
+                <span class="chip chip-blue">{{ emergenciaSeleccionada.tipo_ia || 'N/A' }}</span>
+                <span class="chip chip-red">{{ emergenciaSeleccionada.severidad_ia || 'N/A' }}</span>
+                <span class="chip chip-orange" *ngIf="emergenciaSeleccionada.prioridad_ia">{{ emergenciaSeleccionada.prioridad_ia }}</span>
+              </div>
+            </div>
+            <!-- Ubicación -->
+            <div class="info-card">
+              <h3>📍 Datos de Ubicación</h3>
+              <div class="info-row">
+                <span class="info-label">Dirección:</span>
+                <span>{{ emergenciaSeleccionada.direccion }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Descripción:</span>
+                <span>{{ emergenciaSeleccionada.descripcion }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">GPS:</span>
+                <span class="gps-coords">
+                  Lat: {{ emergenciaSeleccionada.latitud }}, Lon: {{ emergenciaSeleccionada.longitud }}
                 </span>
+                <button class="btn-maps" (click)="abrirGoogleMaps(emergenciaSeleccionada.latitud, emergenciaSeleccionada.longitud)"
+                        *ngIf="emergenciaSeleccionada.latitud && emergenciaSeleccionada.longitud">
+                  Abrir en Google Maps
+                </button>
               </div>
-              <p style="margin: 0; color: #111827; font-size: 16px; font-weight: 700;">{{ emergenciaSeleccionada.tipo_ia
-                }}</p>
-              <p style="margin: 10px 0 0; color: #4b5563; font-size: 13px; line-height: 1.5;">
-                Diagnóstico generado por IA basado en el reporte del cliente.
-              </p>
             </div>
-
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding-left: 10px;">
-              <span style="color: #ef4444; font-size: 20px;">🎯</span>
-              <h3 style="margin: 0; font-size: 17px; color: #111827; font-weight: 700;">Datos de Ubicación</h3>
-            </div>
-
-            <div
-              style="background: white; border-radius: 20px; padding: 5px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-
-              <div style="padding: 15px 0; border-bottom: 1px solid #f3f4f6; display: flex; gap: 15px;">
-                <span style="font-size: 20px;">📍</span>
-                <div>
-                  <label
-                    style="display: block; font-size: 11px; color: #9ca3af; font-weight: 700; text-transform: uppercase;">Referencia</label>
-                  <p style="margin: 4px 0 0; color: #1f2937; font-size: 14px;">{{ emergenciaSeleccionada.direccion }}
-                  </p>
-                </div>
+            <!-- Func 2: Talleres cercanos -->
+            <div class="info-card">
+              <h3>🗺️ Talleres Cercanos</h3>
+              <div *ngIf="cargandoRuta" class="loading-text">Calculando distancias...</div>
+              <div *ngIf="!cargandoRuta && talleresCercanos.length === 0" class="loading-text">
+                No hay talleres con coordenadas registradas.
               </div>
-
-              <div style="padding: 15px 0; border-bottom: 1px solid #f3f4f6; display: flex; gap: 15px;">
-                <span style="font-size: 20px;">📄</span>
-                <div>
-                  <label
-                    style="display: block; font-size: 11px; color: #9ca3af; font-weight: 700; text-transform: uppercase;">Descripción
-                    del Cliente</label>
-                  <p style="margin: 4px 0 0; color: #1f2937; font-size: 14px;">{{ emergenciaSeleccionada.descripcion }}
-                  </p>
-                </div>
-              </div>
-
-              <div style="padding: 15px 0; display: flex; gap: 15px;">
-                <span style="font-size: 20px;">🗺️</span>
-                <div>
-                  <label
-                    style="display: block; font-size: 11px; color: #9ca3af; font-weight: 700; text-transform: uppercase;">Ubicación
-                    GPS Exacta</label>
-                  <p style="margin: 4px 0 0; color: #1f2937; font-size: 14px; font-family: monospace;">
-                    Lat: {{ emergenciaSeleccionada.latitud }}<br>
-                    Lon: {{ emergenciaSeleccionada.longitud }}
-                  </p>
+              <div *ngIf="!cargandoRuta && talleresCercanos.length > 0" class="talleres-lista">
+                <div *ngFor="let taller of talleresCercanos; let i = index" class="taller-item" [class.first]="i === 0">
+                  <div class="taller-info">
+                    <span class="taller-rank">#{{ i + 1 }}</span>
+                    <div>
+                      <strong>{{ taller.nombre_taller }}</strong>
+                      <span class="taller-dist">{{ taller.distancia_km }} km · {{ taller.eta_minutos }} min</span>
+                    </div>
+                  </div>
+                  <span class="taller-eta">{{ taller.eta_minutos }} min</span>
                 </div>
               </div>
             </div>
-
-            <div style="margin-top: 30px;">
-              <button (click)="aceptarEmergencia()"
-                style="width: 100%; height: 55px; background: #e5e7eb; border: none; border-radius: 15px; color: #374151; font-weight: 700; font-size: 15px; cursor: pointer;">
-                ACEPTAR SERVICIO
-              </button>
+            <!-- Func 3: Timeline de estados -->
+            <div class="info-card">
+              <h3>📋 Historial de Estados</h3>
+              <div *ngIf="cargandoHistorial" class="loading-text">Cargando historial...</div>
+              <div *ngIf="!cargandoHistorial && historial.length === 0" class="loading-text">
+                Sin cambios de estado registrados.
+              </div>
+              <div *ngIf="!cargandoHistorial && historial.length > 0" class="timeline">
+                <div *ngFor="let h of historial" class="timeline-item">
+                  <div class="timeline-dot"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-header">
+                      <span class="timeline-status">{{ h.estado_anterior }} → {{ h.estado_nuevo }}</span>
+                      <span class="timeline-date">{{ h.fecha_cambio | date:'dd/MM/yyyy HH:mm' }}</span>
+                    </div>
+                    <p class="timeline-desc">{{ h.descripcion }}</p>
+                  </div>
+                </div>
+              </div>
             </div>
+            <!-- Func 3: Botones de transición -->
+            <div class="transiciones-card" *ngIf="transiciones[emergenciaSeleccionada.estado]">
+              <h3>⚡ Acciones Disponibles</h3>
+              <div class="transiciones-btns">
+                <button *ngFor="let t of transiciones[emergenciaSeleccionada.estado]"
+                        class="btn-transicion"
+                        (click)="ejecutarTransicion(t.estado, t.desc)"
+                        [disabled]="procesando">
+                  {{ t.label }}
+                </button>
+              </div>
+            </div>
+            <!-- Botón aceptar (solo si está Pendiente) -->
+            <button *ngIf="emergenciaSeleccionada.estado === 'Pendiente'"
+                    class="btn-aceptar"
+                    (click)="aceptarEmergencia()"
+                    [disabled]="procesando">
+              {{ procesando ? 'Procesando...' : '✅ ACEPTAR SERVICIO' }}
+            </button>
           </div>
         </div>
       </div>
@@ -168,40 +201,21 @@
         <h1>Mi Perfil</h1>
         <p>Información registrada de tu taller.</p>
       </header>
-    
-      <div class="account-card"
-        style="background: white; border-radius: 20px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 600px;">
-    
-        <div class="account-avatar"
-          style="width: 70px; height: 70px; background: #4f46e5; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: bold; margin-bottom: 30px;">
+      <div class="account-card">
+        <div class="account-avatar">
           {{ (datosTaller?.nombre_taller || datosTaller?.nombre || 'T').charAt(0).toUpperCase() }}
         </div>
-    
         <div class="account-fields">
-          <div class="account-field" style="padding: 15px 0; border-bottom: 1px solid #f3f4f6;">
-            <label
-              style="display: block; font-size: 11px; color: #9ca3af; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
-              Nombre del Taller
-            </label>
-            <p style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">
-              {{ datosTaller?.nombre_taller || datosTaller?.nombre || 'Nombre no disponible' }}
-            </p>
+          <div class="account-field">
+            <label>Nombre del Taller</label>
+            <p>{{ datosTaller?.nombre_taller || datosTaller?.nombre || 'Nombre no disponible' }}</p>
           </div>
-    
-          <div class="account-field" style="padding: 15px 0;">
-            <label
-              style="display: block; font-size: 11px; color: #9ca3af; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">
-              Usuario Responsable
-            </label>
-            <p style="margin: 0; font-size: 16px; color: #374151;">
-              {{ datosTaller?.usuario || datosTaller?.username || 'Usuario no disponible' }}
-            </p>
+          <div class="account-field">
+            <label>Usuario Responsable</label>
+            <p>{{ datosTaller?.usuario || datosTaller?.username || 'Usuario no disponible' }}</p>
           </div>
         </div>
-    
       </div>
     </div>
-
   </main>
-</div> ```
-
+</div>
