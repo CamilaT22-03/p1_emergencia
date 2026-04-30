@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -9,41 +10,74 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../api_config.dart';
 import 'ficha_resumen_page.dart';
 import '../services/web_audio_recorder.dart';
-
-// (IMPORTANTE: Asegúrate de importar tu tema si AppTheme está en otro archivo)
-// import '../theme/app_theme.dart'; // Descomenta o ajusta esta línea según tu proyecto
-
-// --- 1. LA CABEZA DE LA PANTALLA (Faltaba esto) ---
 class EmergenciaPage extends StatefulWidget {
   final int clienteId;
   const EmergenciaPage({super.key, required this.clienteId});
-
   @override
   State<EmergenciaPage> createState() => _EmergenciaPageState();
 }
-
-// --- 2. EL CUERPO Y LA LÓGICA ---
 class _EmergenciaPageState extends State<EmergenciaPage> {
   final ubicacionCtrl  = TextEditingController();
   final descripcionCtrl = TextEditingController();
   bool _enviando = false;
-
   final ImagePicker _picker = ImagePicker();
   XFile? _imagenSeleccionada;
   Uint8List? _audioBytes;
   String? _audioNombre;
   bool _grabandoAudio = false;
   final WebAudioRecorder _webAudioRecorder = WebAudioRecorder();
-
+  Map<String, dynamic>? _clasificacionPreview;
+  Timer? _debounceTimer;
+  bool _clasificando = false;
+  @override
+  void initState() {
+    super.initState();
+    descripcionCtrl.addListener(_onDescripcionChanged);
+  }
+  @override
+  void dispose() {
+    descripcionCtrl.removeListener(_onDescripcionChanged);
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+  void _onDescripcionChanged() {
+    _debounceTimer?.cancel();
+    if (descripcionCtrl.text.trim().isEmpty) {
+      if (mounted) setState(() => _clasificacionPreview = null);
+      return;
+    }
+    _debounceTimer = Timer(const Duration(milliseconds: 800), () {
+      if (descripcionCtrl.text.trim().isNotEmpty) {
+        _clasificarTexto(descripcionCtrl.text.trim());
+      }
+    });
+  }
+  Future<void> _clasificarTexto(String texto) async {
+    if (mounted) setState(() => _clasificando = true);
+    try {
+      final res = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/emergencias/clasificar-texto'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'descripcion': texto}),
+      );
+      if (res.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _clasificacionPreview = jsonDecode(res.body);
+            _clasificando = false;
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) setState(() => _clasificando = false);
+    }
+  }
   Future<void> _tomarFoto() async {
     final XFile? foto = await _picker.pickImage(source: ImageSource.gallery);
     if (foto != null) {
-      setState(() {
-        _imagenSeleccionada = foto;
-      });
+      setState(() => _imagenSeleccionada = foto);
     }
   }
-
   Future<void> _seleccionarAudio() async {
     if (kIsWeb) {
       if (_grabandoAudio) {
@@ -59,7 +93,6 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
         }
         return;
       }
-
       final tienePermiso = await _webAudioRecorder.hasPermission();
       if (!tienePermiso) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -69,18 +102,15 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
         ));
         return;
       }
-
       await _webAudioRecorder.start();
       setState(() => _grabandoAudio = true);
       return;
     }
-
     final resultado = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['wav', 'mp3', 'm4a', 'aac', 'ogg', 'flac'],
       withData: true,
     );
-
     if (resultado != null && resultado.files.isNotEmpty) {
       final audio = resultado.files.first;
       if (audio.bytes != null) {
@@ -91,7 +121,6 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
       }
     }
   }
-
   Future<void> procesarYEnviar() async {
     if (descripcionCtrl.text.isEmpty && _imagenSeleccionada == null && _audioBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -101,51 +130,39 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
       ));
       return;
     }
-
     setState(() => _enviando = true);
-    
     try {
       LocationPermission permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         throw Exception("Necesitamos permiso de GPS");
       }
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${ApiConfig.baseUrl}/api/emergencias/registrar-inteligente'),
       );
-
       request.fields['cliente_id'] = widget.clienteId.toString();
       request.fields['vehiculo_id'] = '1';
       request.fields['direccion'] = ubicacionCtrl.text.isEmpty ? 'Ubicación por GPS' : ubicacionCtrl.text;
       request.fields['descripcion'] = descripcionCtrl.text;
       request.fields['latitud'] = position.latitude.toString();
       request.fields['longitud'] = position.longitude.toString();
-
       if (_imagenSeleccionada != null) {
         final bytes = await _imagenSeleccionada!.readAsBytes();
         request.files.add(http.MultipartFile.fromBytes(
-          'imagen',
-          bytes,
-          filename: _imagenSeleccionada!.name,
+          'imagen', bytes, filename: _imagenSeleccionada!.name,
         ));
       }
-
       if (_audioBytes != null) {
         request.files.add(http.MultipartFile.fromBytes(
-          'audio',
-          _audioBytes!,
-          filename: _audioNombre ?? 'nota_de_voz.wav',
+          'audio', _audioBytes!, filename: _audioNombre ?? 'nota_de_voz.wav',
         ));
       }
-
       final streamed = await request.send();
       final res = await http.Response.fromStream(streamed);
-
       if (res.statusCode == 200 || res.statusCode == 201) {
         final datos = jsonDecode(res.body);
-        final analisis = (datos['analisis_ia'] as Map<String, dynamic>? ) ?? {};
+        final analisis = (datos['analisis_ia'] as Map<String, dynamic>?) ?? {};
         final fichaDeEmergencia = {
           'cliente_id': widget.clienteId,
           'vehiculo_id': 1,
@@ -155,9 +172,8 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
           'longitud': position.longitude,
           ...analisis,
         };
-
         Navigator.pushReplacement(
-            context, 
+            context,
             MaterialPageRoute(
                 builder: (context) => FichaResumenPage(
                   datosFicha: fichaDeEmergencia,
@@ -178,13 +194,28 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
       setState(() => _enviando = false);
     }
   }
-
+  Color _colorSeveridad(String severidad) {
+    switch (severidad.toLowerCase()) {
+      case 'crítico': case 'critico': case 'grave': return Colors.red;
+      case 'moderado': return Colors.orange;
+      case 'leve': return Colors.green;
+      default: return Colors.grey;
+    }
+  }
+  Color _colorPrioridad(String prioridad) {
+    switch (prioridad.toLowerCase()) {
+      case 'crítica': case 'critica': case 'alta': return Colors.red;
+      case 'media': return Colors.orange;
+      case 'baja': return Colors.green;
+      default: return Colors.grey;
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportar Emergencia'),
-        backgroundColor: Colors.redAccent, // Usé Colors temporalmente por si falla AppTheme
+        backgroundColor: Colors.redAccent,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -210,11 +241,9 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
               ]),
             ),
             const SizedBox(height: 28),
-
             const Text('Detalles del incidente',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.black87)),
             const SizedBox(height: 20),
-
             TextField(
               controller: ubicacionCtrl,
               decoration: const InputDecoration(
@@ -237,8 +266,59 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
                 alignLabelWithHint: true,
               ),
             ),
+            // Func 1: Preview de clasificación en tiempo real
+            if (_clasificando) ...[
+              const SizedBox(height: 12),
+              const Center(child: SizedBox(
+                width: 24, height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )),
+            ] else if (_clasificacionPreview != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.indigo.withOpacity(0.15)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('📊 Pre-clasificación',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.indigo)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _buildChip(_clasificacionPreview!['tipo_incidente'] ?? 'N/A', Colors.blue),
+                        _buildChip(
+                          _clasificacionPreview!['nivel_severidad'] ?? 'N/A',
+                          _colorSeveridad(_clasificacionPreview!['nivel_severidad'] ?? ''),
+                        ),
+                        _buildChip(
+                          _clasificacionPreview!['prioridad'] ?? 'N/A',
+                          _colorPrioridad(_clasificacionPreview!['prioridad'] ?? ''),
+                        ),
+                        _buildChip(
+                          _clasificacionPreview!['confianza_ia'] ?? '',
+                          Colors.grey,
+                        ),
+                      ],
+                    ),
+                    if (_clasificacionPreview!['explicacion'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _clasificacionPreview!['explicacion'],
+                        style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
-
             const Text('Evidencia Visual',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.black87)),
             const SizedBox(height: 12),
@@ -252,7 +332,7 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
                 ),
-                child: _imagenSeleccionada == null 
+                child: _imagenSeleccionada == null
                   ? const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -266,21 +346,20 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
                     ),
               ),
             ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _seleccionarAudio,
-                    icon: Icon(_grabandoAudio ? Icons.stop_circle_outlined : Icons.mic_none_outlined),
-                    label: Text(_grabandoAudio
-                        ? 'Detener grabación'
-                        : _audioBytes == null
-                            ? (kIsWeb ? 'Grabar audio con micrófono' : 'Adjuntar audio')
-                            : 'Audio cargado: ${_audioNombre ?? 'nota_de_voz'}'),
-                  ),
-                ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _seleccionarAudio,
+                icon: Icon(_grabandoAudio ? Icons.stop_circle_outlined : Icons.mic_none_outlined),
+                label: Text(_grabandoAudio
+                    ? 'Detener grabación'
+                    : _audioBytes == null
+                        ? (kIsWeb ? 'Grabar audio con micrófono' : 'Adjuntar audio')
+                        : 'Audio cargado: ${_audioNombre ?? 'nota_de_voz'}'),
+              ),
+            ),
             const SizedBox(height: 32),
-
             SizedBox(
               width: double.infinity,
               height: 54,
@@ -291,7 +370,7 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
                 ),
                 icon: _enviando
                     ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.psychology, color: Colors.white), 
+                    : const Icon(Icons.psychology, color: Colors.white),
                 label: Text(_enviando ? 'Analizando y Enviando...' : 'Analizar por IA y Enviar',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
                 onPressed: _enviando ? null : procesarYEnviar,
@@ -299,6 +378,20 @@ class _EmergenciaPageState extends State<EmergenciaPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+  Widget _buildChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }
