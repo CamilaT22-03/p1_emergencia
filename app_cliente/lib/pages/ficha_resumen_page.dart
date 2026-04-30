@@ -23,46 +23,6 @@ class FichaResumenPage extends StatelessWidget {
     }
     return 'No disponible';
   }
-  String _getDetalleDinamico() {
-    final tipo = (datosFicha['tipo_ia'] ?? datosFicha['tipo_incidente'] ?? 'otros').toString().toLowerCase();
-    final severidad = (datosFicha['severidad_ia'] ?? datosFicha['nivel_severidad'] ?? '').toString().toLowerCase();
-    final sugiereGrua = datosFicha['sugiere_grua'] == true;
-    final detalles = {
-      'bateria': {
-        'leve': 'Se detectó un problema con el sistema de arranque o batería. Generalmente se resuelve con un puente de arranque en el lugar. No requiere grúa.',
-        'moderado': 'Problema eléctrico relacionado con la batería o alternador. Podría requerir diagnóstico adicional del sistema de carga.',
-        'grave': 'Fallo severo del sistema eléctrico. Puede requerir traslado a taller para reparación completa del sistema de carga.',
-      },
-      'llanta': {
-        'leve': 'Se identificó un neumático dañado o desinflado. Se puede reparar en el lugar con cambio de rueda o parche.',
-        'moderado': 'Problema de neumáticos con posible daño en el rín. Se recomienda inspección del sistema de suspensión.',
-        'grave': 'Daño severo en neumáticos con posible afectación de suspensión o dirección. Evaluación profesional requerida.',
-      },
-      'choque': {
-        'moderado': 'Se reportó un incidente vehicular con daño aparentemente menor. Se recomienda evaluación presencial para determinar reparaciones necesarias.',
-        'grave': 'Choque con daño significativo en la carrocería. Posible afectación estructural. Se recomienda evaluación en taller.',
-        'crítico': 'Accidente vehicular grave con daño estructural severo. ${sugiereGrua ? 'Se requiere traslado con grúa al taller más cercano.' : 'Verificar si el vehículo puede circular.'}',
-      },
-      'motor': {
-        'moderado': 'Problema de motor detectado que requiere revisión técnica. No se recomienda continuar conduciendo sin diagnóstico.',
-        'grave': 'Fallo grave de motor. Alto riesgo de daño mayor si se continúa operando el vehículo. Se recomienda grúa.',
-        'crítico': 'Fallo crítico de motor. Vehículo no operable. Requiere traslado urgente con grúa a taller especializado.',
-      },
-      'frenos': {
-        'moderado': 'Problema en el sistema de frenos detectado. No conducir el vehículo hasta inspección profesional.',
-        'grave': 'Fallo severo de frenos. Peligro inminente. No mover el vehículo. Se requiere asistencia inmediata.',
-      },
-      'electrico': {
-        'leve': 'Problema eléctrico menor detectado. Se puede diagnosticar en el lugar con herramientas básicas.',
-        'moderado': 'Fallo eléctrico significativo que requiere diagnóstico especializado. Posible revisión de cableado o fusibles.',
-      },
-      'combustible': {
-        'leve': 'Problema de suministro de combustible. Se resuelve con reabastecimiento o cambio de filtro de combustible.',
-      },
-    };
-    return (detalles[tipo] ?? {})[severidad] ??
-        'Se identificó un incidente de tipo "$tipo" con severidad "$severidad". Se recomienda evaluación profesional en el lugar.';
-  }
   Widget _buildEtiquetaIA(String titulo, String valor, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -157,7 +117,6 @@ class FichaResumenPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 25),
-                  // Diagnóstico IA
                   const Row(
                     children: [
                       Icon(Icons.psychology, color: Colors.purple, size: 28),
@@ -183,20 +142,8 @@ class FichaResumenPage extends StatelessWidget {
                             const Divider(),
                             _buildEtiquetaIA("Confianza IA", confianza, Colors.purple),
                           ],
-                          const Divider(),
-                          if ((datosFicha['resumen'] ?? '').toString().isNotEmpty) ...[
-                            const Text("Resumen automático:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                            const SizedBox(height: 5),
-                            Text(datosFicha['resumen'].toString(), style: const TextStyle(fontSize: 15, height: 1.4)),
-                            const Divider(),
-                          ],
-                          if ((datosFicha['transcripcion_audio'] ?? '').toString().isNotEmpty) ...[
-                            const Text("Transcripción de audio:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                            const SizedBox(height: 5),
-                            Text(datosFicha['transcripcion_audio'].toString(), style: const TextStyle(fontSize: 15, height: 1.4)),
-                            const Divider(),
-                          ],
                           if (sugiereGrua) ...[
+                            const Divider(),
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
@@ -210,27 +157,31 @@ class FichaResumenPage extends StatelessWidget {
                                   SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      "Se recomienda servicio de grúa basado en el análisis del incidente.",
+                                      "Se recomienda servicio de grúa.",
                                       style: TextStyle(fontSize: 13, color: Colors.orange, fontWeight: FontWeight.w500),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 8),
                           ],
-                          const Text("Detalles detectados:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                          const SizedBox(height: 5),
-                          Text(
-                            _getDetalleDinamico(),
-                            style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black87),
-                          ),
+                          if ((datosFicha['resumen'] ?? '').toString().isNotEmpty) ...[
+                            const Divider(),
+                            const Text("Resumen automático:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 5),
+                            Text(datosFicha['resumen'].toString(), style: const TextStyle(fontSize: 14, height: 1.4)),
+                          ],
+                          if ((datosFicha['transcripcion_audio'] ?? '').toString().isNotEmpty) ...[
+                            const Divider(),
+                            const Text("Transcripción de audio:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 5),
+                            Text(datosFicha['transcripcion_audio'].toString(), style: const TextStyle(fontSize: 14, height: 1.4)),
+                          ],
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 25),
-                  // Datos de GPS
                   const Row(
                     children: [
                       Icon(Icons.gps_fixed, color: Colors.redAccent, size: 28),
