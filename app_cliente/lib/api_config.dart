@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 class ApiConfig {
   // Cambiar a 'true' para usar localhost (desarrollo local)
   // Cambiar a 'false' para usar Render (producción)
-  static const bool useLocalhost = false;
+  static const bool useLocalhost = true;
   
   static const String renderUrl = 'https://p1-emergencia.onrender.com';
   static const String localhostUrl = 'http://localhost:8000';
