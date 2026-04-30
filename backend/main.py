@@ -553,6 +553,15 @@ def aceptar_emergencia(id_emergencia: int, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+@app.patch("/emergencias/{id_emergencia}/rechazar")
+def rechazar_emergencia(id_emergencia: int, db: Session = Depends(get_db)):
+    emergencia = db.query(models.Emergencia).filter(models.Emergencia.id == id_emergencia).first()
+    if emergencia:
+        emergencia.estado = "Rechazada"
+        db.commit()
+        return {"mensaje": "Emergencia rechazada con éxito"}
+    return {"error": "Emergencia no encontrada"}
+---
 @app.patch("/emergencias/{id_emergencia}/estado")
 def cambiar_estado_emergencia(id_emergencia: int, cambio: schemas.CambioEstado, db: Session = Depends(get_db)):
     try:
