@@ -17,9 +17,13 @@ export class EmergenciaVista implements OnInit, OnDestroy {
   // 2. Variables de control
   timer: any;
   seccion: string = 'inicio';
-  // --- VARIABLES PARA EL MODO "FICHA" ---
+
+  // --- NUEVAS VARIABLES PARA EL MODO "FICHA" ---
   emergenciaSeleccionada: Emergencia | null = null;
   procesando: boolean = false;
+  cargandoDetalle: boolean = false; // Para cargar distancia/tiempo
+  detalleEmergencia: any = null; // Datos completos con distancia/tiempo
+
   constructor(
     private service: EmergenciaService,
     private authService: AuthService,
@@ -31,7 +35,11 @@ export class EmergenciaVista implements OnInit, OnDestroy {
       this.router.navigate(['/login']);
       return;
     }
-    this.cargar();
+
+    this.seccion = 'emergencias'; // Mostrar emergencias por defecto
+    this.cargar(); // Carga las emergencias por primera vez
+
+    // Hacemos que la tabla se actualice sola cada 15 segundos buscando nuevas emergencias
     this.timer = setInterval(() => this.cargar(), 15000);
   }
   // Descarga la lista desde FastAPI (ahora incluye pendientes y aceptadas)
@@ -45,14 +53,31 @@ export class EmergenciaVista implements OnInit, OnDestroy {
       }
     });
   }
-  // --- FUNCIONES DE FICHA ---
+
+  // --- NUEVAS FUNCIONES PARA CONTROLAR LA PANTALLA ---
+ 
+  // Oculta la tabla y abre la ficha completa
   abrirFicha(em: Emergencia): void {
     this.emergenciaSeleccionada = em;
+    this.cargandoDetalle = true;
+    
+    // Cargar detalles con distancia y tiempo
+    this.service.getDetalleEmergencia(em.id!).subscribe({
+      next: (detalle: any) => {
+        this.detalleEmergencia = detalle;
+        this.cargandoDetalle = false;
+      },
+      error: (e: any) => {
+        console.error("Error cargando detalle:", e);
+        this.cargandoDetalle = false;
+      }
+    });
   }
   cerrarFicha(): void {
     this.emergenciaSeleccionada = null;
   }
-  // Aceptar servicio
+  
+  // Función para aceptar el servicio (CU-08)
   aceptarEmergencia(): void {
     const idEmergencia = this.emergenciaSeleccionada?.id ?? this.emergenciaSeleccionada?.id_emergencia;
     if (!idEmergencia) return;
@@ -71,3 +96,43 @@ export class EmergenciaVista implements OnInit, OnDestroy {
       }
     });
   }
+
+  // Función para finalizar el servicio (marcar como "Resuelto")
+  finalizarEmergencia(): void {
+    const idEmergencia = this.emergenciaSeleccionada?.id ?? this.emergenciaSeleccionada?.id_emergencia;
+    if (!idEmergencia) return;
+
+    if (!confirm("¿Estás seguro de marcar esta emergencia como resuelta?")) {
+      return;
+    }
+
+    this.procesando = true;
+
+    this.service.finalizarEmergencia(idEmergencia).subscribe({
+      next: () => {
+        alert("¡Emergencia finalizada! El cliente ha sido notificado.");
+        this.cerrarFicha();
+        this.cargar();
+        this.procesando = false;
+      },
+      error: (e: any) => {
+        console.error("Error al finalizar:", e);
+        alert("Hubo un error al finalizar la emergencia.");
+        this.procesando = false;
+      }
+    });
+  }
+
+  // --- FUNCIÓN DE SALIDA ---
+  salir(): void {
+    this.authService.cerrarSesion();
+    this.router.navigate(['/login']);
+  }
+
+  ngOnDestroy(): void {
+    // Apagamos el timer si el mecánico cierra la pestaña
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
+  }
+}

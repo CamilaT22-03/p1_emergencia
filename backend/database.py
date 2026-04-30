@@ -4,15 +4,20 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde el archivo .env
-load_dotenv()
+load_dotenv(override=True)
 
-# 1. Obtenemos la URL de la base de datos desde las variables de entorno (.env)
-# Si no existe, usamos la local por defecto
-URL_BASE_DATOS = os.getenv("DATABASE_URL", "postgresql://postgres:12345@localhost/emergencia_db")
+# 1. Obtenemos la URL de la base de datos
+URL_BASE_DATOS = os.getenv("DATABASE_URL", "sqlite:///./emergencia_local.db")
 
 # 2. Creamos el motor que hará viajar los datos
-# Añadimos sslmode=require porque Supabase lo necesita en producción
-engine = create_engine(URL_BASE_DATOS)
+# Configuración especial para Supabase PostgreSQL
+if URL_BASE_DATOS.startswith("postgresql"):
+    engine = create_engine(
+        URL_BASE_DATOS,
+        connect_args={"sslmode": "require"}
+    )
+else:
+    engine = create_engine(URL_BASE_DATOS)
 
 # 3. Creamos la sesión (es como abrir la puerta para meter o sacar datos)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
